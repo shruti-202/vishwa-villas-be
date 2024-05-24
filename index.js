@@ -8,7 +8,12 @@ const authRoutes = require("./routes/AuthRoutes");
 /*App*/
 const app = express();
 app.use(express.json());
-app.use(cors());
+app.use(
+  cors({
+    credentials: true,
+    origin: ["https://vishwa-villas.vercel.app/", "http://localhost:5173"],
+  })
+);
 
 /*Database Connection*/
 mongoose.connect(process.env.DATABASE_URL);

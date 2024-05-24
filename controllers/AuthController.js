@@ -1,5 +1,7 @@
 const User = require("../models/UserModel");
 const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+const cookieParser = require("cookie-parser");
 const { usernameValidator, passwordValidator, emailValidator, nameValidator } = require("../constants/Validators");
 
 const salt = bcrypt.genSaltSync(10);
@@ -80,13 +82,17 @@ const registerUser = async (req, res) => {
   try {
     const userByUsername = await User.findOne({ username: username });
     if (userByUsername) {
-      res.status(400).json({ error: "User already exists" });
-      return;
+      return res.status(400).json({
+        statusCode: 400,
+        error: "User already Exists",
+      });
     }
     const userByEmail = await User.findOne({ email: email });
     if (userByEmail) {
-      res.status(400).json({ error: "Email already exists" });
-      return;
+      return res.status(400).json({
+        statusCode: 400,
+        error: "Email already Exists",
+      });
     }
     const userDoc = await User.create({
       name,
@@ -97,8 +103,78 @@ const registerUser = async (req, res) => {
     });
     res.status(201).json(userDoc);
   } catch (err) {
-    res.status(400).end("Bad request");
+    return res.status(400).json({
+      statusCode: 400,
+      error: "Bad Requests",
+    });
   }
 };
 
-module.exports = { registerUser };
+const loginUser = async (req, res) => {
+  const { username, password } = req.body;
+  if (!username) {
+    return res.status(400).json({
+      statusCode: 400,
+      error: "Please enter your Username",
+    });
+  }
+  if (!usernameValidator(username)) {
+    return res.status(400).json({
+      statusCode: 400,
+      error:
+        "Invalid username! It should have only a-z A-Z 0-9 _ characters and should have 8-30 characters",
+    });
+  }
+  if (!password) {
+    return res.status(400).json({
+      statusCode: 400,
+      error: "Please enter your password",
+    });
+  }
+  if (!passwordValidator(password)) {
+    return res.status(400).json({
+      statusCode: 400,
+      error:
+        "Invalid Password! Minimum eight characters, at least one uppercase letter, lowercase letter, number and special character",
+    });
+  }
+
+  try {
+    const userDoc = await User.findOne({ username });
+    if (!userDoc) {
+      return res.status(400).json({
+        statusCode: 400,
+        error: "Invalid Username",
+      });
+    }
+    const isPasswordCorrect = bcrypt.compareSync(password, userDoc.password);
+    if (!isPasswordCorrect) {
+      return res.status(400).json({
+        statusCode: 400,
+        error: "Invalid Password",
+      });
+    }
+    const token = jwt.sign({ id: userDoc._id }, process.env.JWT_SECRET_KEY, {
+      expiresIn: "1d",
+    });
+    console.log("token", token);
+    return res
+      .cookie("token", token, {
+        httpOnly: true,
+        sameSite: "none",
+        secure: true,
+      })
+      .status(200)
+      .json({
+        success: "User Logged In Successfully",
+        data: {
+          userId: userDoc._id,
+          username: userDoc.username,
+        },
+      });
+  } catch (err) {
+    res.end("err");
+  }
+};
+
+module.exports = { registerUser, loginUser };
