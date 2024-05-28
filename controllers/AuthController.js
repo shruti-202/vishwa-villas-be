@@ -157,15 +157,8 @@ const loginUser = async (req, res) => {
     const token = jwt.sign({ id: userDoc._id }, process.env.JWT_SECRET_KEY, {
       expiresIn: "1d",
     });
-    console.log("token", token);
-    return res
-      .cookie("token", token, {
-        httpOnly: true,
-        sameSite: "none",
-        secure: true,
-      })
-      .status(200)
-      .json({
+
+    res.cookie("token", token, { httpOnly: true, sameSite: "none", secure: true }).status(200).json({
         success: "User Logged In Successfully",
         data: {
           userId: userDoc._id,
@@ -177,4 +170,8 @@ const loginUser = async (req, res) => {
   }
 };
 
-module.exports = { registerUser, loginUser };
+const logoutUser = async (req,res) => {
+  res.clearCookie('token').status(200).json({success: "User Logged Out Successfully"});
+}
+
+module.exports = { registerUser, loginUser, logoutUser };
