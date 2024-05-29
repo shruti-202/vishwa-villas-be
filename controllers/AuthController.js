@@ -170,8 +170,34 @@ const loginUser = async (req, res) => {
   }
 };
 
-const logoutUser = async (req,res) => {
-  res.clearCookie('token').status(200).json({success: "User Logged Out Successfully"});
-}
+const logoutUser = async (req, res) => {
+  res.clearCookie("token").status(200).json({ success: "User Logged Out Successfully" });
+};
 
-module.exports = { registerUser, loginUser, logoutUser };
+const profileCheck = async (req, res) => {
+  const { token } = req.cookies;
+
+  if (!token) {
+    return res.status(401).json({
+      statusCode: 401,
+      error: "Please Login",
+    });
+  }
+  try {
+    const decodedValueOfToken = jwt.verify(token, process.env.JWT_SECRET_KEY);
+    const userDoc = await User.findOne({ _id: decodedValueOfToken.id });
+    res.status(200).json({
+      data: {
+        userId: userDoc._id,
+        username: userDoc.username,
+      },
+    });
+  } catch (err) {
+    return res.status(400).json({
+      statusCode: 400,
+      error: "Encounter an Error",
+    });
+  }
+};
+
+module.exports = { registerUser, loginUser, logoutUser, profileCheck };
