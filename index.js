@@ -13,7 +13,7 @@ app.use(cookieParser());
 app.use(
   cors({
     credentials: true,
-    origin: ["https://vishwa-villas.vercel.app/", "http://localhost:5173"],
+    origin: ["https://vishwa-villas.vercel.app", "http://localhost:5173"],
   })
 );
 
