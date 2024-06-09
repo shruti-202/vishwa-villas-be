@@ -5,6 +5,7 @@ const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const healthRoute = require("./routes/HealthRoute");
 const authRoutes = require("./routes/AuthRoutes");
+const itemRoutes = require("./routes/ItemRoute")
 
 /*App*/
 const app = express();
@@ -25,6 +26,7 @@ mongoose.connection.on("error", (err) => console.log("Database Error:", err));
 /*Routes*/
 app.use("/health", healthRoute);
 app.use("/api/v1/auth", authRoutes);
+app.use("/api/v1/item", itemRoutes);
 
 /*Server Listen*/
 app.listen(process.env.SERVER_PORT, () =>

@@ -18,5 +18,27 @@ const passwordValidator = (password) => {
   return passwordFormat.test(password);
 };
 
-module.exports = { nameValidator, emailValidator, usernameValidator,  passwordValidator }
+const titleValidator = (title) => {
+  const gibberishRegex = /(.)\1{2,}/; 
+  if (gibberishRegex.test(title)) {
+    return false; 
+  }
+  const titleRegex = /^(?:[A-Z][a-z]*|[A-Z]+)(?:\s(?:[A-Z][a-z]*|[A-Z]+|[a-z]+))*$/
+  return titleRegex.test(title);
+};
+
+
+const locationValidator = (location) => {
+  const gibberishRegex = /(.)\1{2,}/; 
+  if (gibberishRegex.test(location)) {
+    return false; 
+  }
+  const locationRegex = /^(?:[A-Z][a-z]*|[A-Z]+)(?:\s(?:[A-Z][a-z]*|[A-Z]+|[a-z]+))*$/
+  return locationRegex.test(location);
+};
+
+
+
+
+module.exports = { nameValidator, emailValidator, usernameValidator,  passwordValidator, titleValidator, locationValidator  }
 
