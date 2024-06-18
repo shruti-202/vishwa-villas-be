@@ -1,6 +1,6 @@
 const { titleValidator, locationValidator } = require("../constants/Validators");
 const jwt = require("jsonwebtoken");
-const propertyAdd = require("../models/PropertyAddModel");
+const PropertyAdd = require("../models/PropertyAddModel");
 
 const createItem = async (req, res) => {
   const token = req.cookies.token;
@@ -94,7 +94,7 @@ const createItem = async (req, res) => {
 
   try {
     const tokenInfo = jwt.verify(token, process.env.JWT_SECRET_KEY);
-    const propertyAddDoc = await propertyAdd.create({
+    const propertyAddDoc = await PropertyAdd.create({
       title,
       location,
       price,
@@ -109,7 +109,62 @@ const createItem = async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ error: "Internal Server Error" });
+    console.log(err)
   }
 };
 
-module.exports = { createItem };
+const getItems = async (req,res) => {
+  try {
+    const pageNo = req.query.page;
+    pageSize = 10;
+   const skips= (pageNo - 1) * 10;
+
+    const propertyAddList = await PropertyAdd.find().skip(skips).limit(pageSize);
+    let propertyAddListResponse = [];
+
+    for(const propertyAddItem of propertyAddList) {
+      propertyAddListResponse.push({
+        title: propertyAddItem.title,
+        location:propertyAddItem.location,
+        price:propertyAddItem.price,
+        listType:propertyAddItem.listType,
+        imgList:propertyAddItem.imgList,
+        createdAt:propertyAddItem.createdAt,
+        id:propertyAddItem._id,
+
+      })
+    }
+    res.status(200).json({
+      data: propertyAddListResponse
+    });
+  } catch (err) {
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+  
+}
+
+const getItemDetails = async (req,res) => {
+  const {itemId} = req.params;
+
+  if(itemId === null || itemId === undefined || itemId.length === 0) {
+    return res.status(400).json({
+      statusCode: 400,
+      error: "Invalid Item Id",
+    });
+  }
+  
+  try {
+    const propertyAdDoc = await PropertyAdd.findById (itemId).populate('author',['name','phone','email']);
+    res.status(200).json({
+      data: propertyAdDoc
+    });
+  } catch {
+    return res.status(400).json({
+      statusCode: 400,
+      error: "Something went wrong",
+    });
+
+  }
+}
+
+module.exports = { createItem, getItems, getItemDetails };
