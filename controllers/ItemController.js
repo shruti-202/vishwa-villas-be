@@ -1,6 +1,10 @@
 const { titleValidator, locationValidator } = require("../constants/Validators");
 const jwt = require("jsonwebtoken");
 const PropertyAdd = require("../models/PropertyAddModel");
+const UserModel = require("../models/UserModel");
+const sendEmail = require("../utility/email/email");
+const { getBuyerEnquiryEmailBody } = require("../utility/email/emailTemplate");
+const EnquiryMailModel = require("../models/EnquiryMailModel");
 
 const createItem = async (req, res) => {
   const token = req.cookies.token;
@@ -109,62 +113,124 @@ const createItem = async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ error: "Internal Server Error" });
-    console.log(err)
+    console.log(err);
   }
 };
 
-const getItems = async (req,res) => {
+const getItems = async (req, res) => {
   try {
     const pageNo = req.query.page;
     pageSize = 10;
-   const skips= (pageNo - 1) * 10;
+    const skips = (pageNo - 1) * 10;
 
-    const propertyAddList = await PropertyAdd.find().skip(skips).limit(pageSize);
+    const propertyAddList = await PropertyAdd.find()
+      .skip(skips)
+      .limit(pageSize);
     let propertyAddListResponse = [];
 
-    for(const propertyAddItem of propertyAddList) {
+    for (const propertyAddItem of propertyAddList) {
       propertyAddListResponse.push({
         title: propertyAddItem.title,
-        location:propertyAddItem.location,
-        price:propertyAddItem.price,
-        listType:propertyAddItem.listType,
-        imgList:propertyAddItem.imgList,
-        createdAt:propertyAddItem.createdAt,
-        id:propertyAddItem._id,
-
-      })
+        location: propertyAddItem.location,
+        price: propertyAddItem.price,
+        listType: propertyAddItem.listType,
+        imgList: propertyAddItem.imgList,
+        createdAt: propertyAddItem.createdAt,
+        id: propertyAddItem._id,
+      });
     }
     res.status(200).json({
-      data: propertyAddListResponse
+      data: propertyAddListResponse,
     });
   } catch (err) {
     res.status(500).json({ error: "Internal Server Error" });
   }
-  
-}
+};
 
-const getItemDetails = async (req,res) => {
-  const {itemId} = req.params;
+const getItemDetails = async (req, res) => {
+  const { itemId } = req.params;
 
-  if(itemId === null || itemId === undefined || itemId.length === 0) {
+  if (itemId === null || itemId === undefined || itemId.length === 0) {
     return res.status(400).json({
       statusCode: 400,
       error: "Invalid Item Id",
     });
   }
-  
+
   try {
-    const propertyAdDoc = await PropertyAdd.findById (itemId).populate('author',['name']);
+    const propertyAdDoc = await PropertyAdd.findById(itemId).populate(
+      "author",
+      ["name"]
+    );
     res.status(200).json({
-      data: propertyAdDoc
+      data: propertyAdDoc,
     });
   } catch {
     return res.status(400).json({
       statusCode: 400,
       error: "Something went wrong",
     });
-
   }
-}
+};
 
-module.exports = { createItem, getItems, getItemDetails };
+const postLead = async (req, res) => {
+  const token = req.cookies.token;
+  const { itemId } = req.body;
+
+  if (!token) {
+    res.status(401).json({ error: "Invalid User" });
+    return;
+  }
+
+  if (!itemId) {
+    res.status(401).json({ error: "Invalid ItemId" });
+    return;
+  }
+
+  try {
+    const tokenInfo = jwt.verify(token, process.env.JWT_SECRET_KEY);
+    const buyerUserDoc = await UserModel.findById(tokenInfo.id);
+    const propertyAdDoc = await PropertyAdd.findById(itemId);
+    const sellerDocId = propertyAdDoc.author.toString();
+    const sellerUserDoc = await UserModel.findById(sellerDocId);
+
+    const enquiryMailDoc = await EnquiryMailModel.findOne({
+      propertyAdId: itemId,
+      buyerId: buyerUserDoc._id,
+      sellerId: sellerUserDoc._id,
+    });
+
+    if (enquiryMailDoc) {
+      res
+        .status(401)
+        .json({ error: "Already Interest has been send to the owner" });
+      return;
+    }
+
+    sendEmail(
+      sellerUserDoc.email,
+      `An interested Lead for your property - Vishwa Villas`,
+      getBuyerEnquiryEmailBody(
+        sellerUserDoc.name,
+        itemId,
+        buyerUserDoc.name,
+        buyerUserDoc.email,
+        buyerUserDoc.phone
+      )
+    );
+
+    const enquiryMailDocNew = await EnquiryMailModel.create({
+      propertyAdId: itemId,
+      buyerId: buyerUserDoc._id,
+      sellerId: sellerUserDoc._id,
+    });
+
+    res.status(201).json({ success: "Interest shared with the owner" });
+  } catch (err) {
+    console.log("error", err);
+    res.status(401).json({ error: "Something went wrong" });
+    return;
+  }
+};
+
+module.exports = { createItem, getItems, getItemDetails, postLead };
