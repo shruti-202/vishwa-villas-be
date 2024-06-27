@@ -123,7 +123,7 @@ const getItems = async (req, res) => {
     pageSize = 10;
     const skips = (pageNo - 1) * 10;
 
-    const propertyAddList = await PropertyAdd.find()
+    const propertyAddList = await PropertyAdd.find().sort({_id: -1})
       .skip(skips)
       .limit(pageSize);
     let propertyAddListResponse = [];
