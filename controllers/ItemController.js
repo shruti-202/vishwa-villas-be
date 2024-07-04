@@ -113,7 +113,6 @@ const createItem = async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ error: "Internal Server Error" });
-    console.log(err);
   }
 };
 
@@ -123,7 +122,8 @@ const getItems = async (req, res) => {
     pageSize = 10;
     const skips = (pageNo - 1) * 10;
 
-    const propertyAddList = await PropertyAdd.find().sort({_id: -1})
+    const propertyAddList = await PropertyAdd.find()
+      .sort({ _id: -1 })
       .skip(skips)
       .limit(pageSize);
     let propertyAddListResponse = [];
@@ -148,28 +148,48 @@ const getItems = async (req, res) => {
 };
 
 const getItemDetails = async (req, res) => {
+  const { token } = req.cookies;
+
   const { itemId } = req.params;
-
   if (itemId === null || itemId === undefined || itemId.length === 0) {
-    return res.status(400).json({
-      statusCode: 400,
-      error: "Invalid Item Id",
-    });
+    res.status(400).json({ error: "invalid item id" });
+    return;
   }
-
   try {
     const propertyAdDoc = await PropertyAdd.findById(itemId).populate(
       "author",
       ["name"]
     );
-    res.status(200).json({
-      data: propertyAdDoc,
-    });
-  } catch {
-    return res.status(400).json({
-      statusCode: 400,
-      error: "Something went wrong",
-    });
+
+    if (token) {
+      jwt.verify(
+        token, process.env.JWT_SECRET_KEY, async (err, userInfoDecoded) => {
+          if (err) {
+            res.status(401).json({ error: "Unauthenticated" });
+            return;
+          }
+          userDoc = await UserModel.findById(userInfoDecoded.id);
+          res.status(200).json({
+            data: {
+              ...propertyAdDoc._doc,
+              edit:
+                userDoc?._id?.toString() ==
+                propertyAdDoc?.author?._id.toString(),
+            },
+          });
+        }
+      );
+    } else {
+      res.status(200).json({
+        data: {
+          ...propertyAdDoc._doc,
+          edit: false,
+        },
+      });
+    }
+  } catch (err) {
+    res.status(400).json({ error: "something went wrong" });
+    return;
   }
 };
 
@@ -201,9 +221,7 @@ const postLead = async (req, res) => {
     });
 
     if (enquiryMailDoc) {
-      res
-        .status(401)
-        .json({ error: "Already Interest has been send to the owner" });
+      res.status(401).json({ error: "Already Interest has been send to the owner" });
       return;
     }
 
@@ -227,10 +245,150 @@ const postLead = async (req, res) => {
 
     res.status(201).json({ success: "Interest shared with the owner" });
   } catch (err) {
-    console.log("error", err);
     res.status(401).json({ error: "Something went wrong" });
     return;
   }
 };
 
-module.exports = { createItem, getItems, getItemDetails, postLead };
+const editItem = async (req, res) => {
+  const token = req.cookies.token;
+  const { itemId } = req.params;
+
+  if (!token) {
+    res.status(401).json({ error: "Invalid User" });
+    return;
+  }
+
+  const { title, location, price, description, imgList, listType } = req.body;
+
+  if (!listType) {
+    return res.status(400).json({
+      statusCode: 400,
+      error: "Please select List Type",
+    });
+  }
+
+  if (!title) {
+    return res.status(400).json({
+      statusCode: 400,
+      error: "Please enter Title",
+    });
+  }
+
+  if (title?.length < 5 || title?.length > 100) {
+    return res.status(400).json({
+      statusCode: 400,
+      error: "Title should be more than 5 and less than 100 Character",
+    });
+  }
+
+  if (!titleValidator(title)) {
+    return res.status(400).json({
+      statusCode: 400,
+      error:
+        "Invalid Title Format: Starts with uppercase followed by either all uppercase/lowercase & cannot contain gibberish/special characters",
+    });
+  }
+
+  if (!price) {
+    return res.status(400).json({
+      statusCode: 400,
+      error: "Please enter the Price",
+    });
+  }
+
+  if (price < 0 || price > 10000000000) {
+    return res.status(400).json({
+      statusCode: 400,
+      error: "Price should be greater than 0 and less than 100,00,00,000",
+    });
+  }
+
+  if (!location) {
+    return res.status(400).json({
+      statusCode: 400,
+      error: "Please enter the location",
+    });
+  }
+
+  if (location?.length < 3 || location?.length > 100) {
+    return res.status(400).json({
+      statusCode: 400,
+      error:
+        "Location length should be more than 3 and less than 100 character",
+    });
+  }
+
+  if (!locationValidator(location)) {
+    return res.status(400).json({
+      statusCode: 400,
+      error:
+        "Invalid Location Format: Starts with uppercase followed by either all uppercase/lowercase & cannot contain gibberish/special characters",
+    });
+  }
+
+  if (description?.length > 1000) {
+    return res.status(400).json({
+      statusCode: 400,
+      error: "Description should be less than 1000 characters",
+    });
+  }
+
+  if (imgList?.length > 10) {
+    return res.status(400).json({
+      statusCode: 400,
+      error: "Maximum 10 images are allowed to be uploaded",
+    });
+  }
+
+  try {
+    jwt.verify(token, process.env.JWT_SECRET_KEY, async (err, userInfoDecoded) => {
+        if (err) {
+          return res.status(401).json({
+            statusCode: 401,
+            error: "Token Expired",
+          });
+        }
+        const propertyAddDoc = await PropertyAdd.findById(itemId).populate(
+          "author",
+          ["name"]
+        );
+        if (!propertyAddDoc) {
+          return res.status(400).json({
+            statusCode: 400,
+            error: "Invalid ItemId",
+          });
+        }
+
+        if (!(userInfoDecoded.id === propertyAddDoc?.author?._id.toString())) {
+          return res.status(403).json({
+            statusCode: 403,
+            error: "Permission Denied",
+          });
+        }
+
+        propertyAddDoc.title = title;
+        propertyAddDoc.location = location;
+        propertyAddDoc.price = price;
+        propertyAddDoc.description = description;
+        propertyAddDoc.imgList = imgList;
+        propertyAddDoc.listType = listType;
+
+        propertyAddDoc.save();
+        console.log("user", userInfoDecoded);
+        console.log("property", propertyAddDoc);
+        res.status(200).json({
+          success: "Ad Updated",
+          data: propertyAddDoc,
+        });
+      }
+    );
+  } catch (err) {
+    return res.status(500).json({
+      statusCode: 500,
+      error: "Internal Server Error",
+    });
+  }
+};
+
+module.exports = { createItem, getItems, getItemDetails, postLead, editItem };
