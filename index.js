@@ -6,7 +6,7 @@ const cookieParser = require("cookie-parser");
 const healthRoute = require("./routes/HealthRoute");
 const authRoutes = require("./routes/AuthRoutes");
 const itemRoutes = require("./routes/ItemRoute")
-
+const profileRoutes = require('./routes/ProfileRoutes')
 
 /*App*/
 const app = express();
@@ -28,6 +28,7 @@ mongoose.connection.on("error", (err) => console.log("Database Error:", err));
 app.use("/health", healthRoute);
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/item", itemRoutes);
+app.use("/api/v1/profile-setting",profileRoutes)
 
 /*Server Listen*/
 app.listen(process.env.SERVER_PORT, () =>
