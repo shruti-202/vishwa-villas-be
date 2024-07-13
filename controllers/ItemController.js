@@ -10,8 +10,10 @@ const createItem = async (req, res) => {
   const token = req.cookies.token;
 
   if (!token) {
-    res.status(401).json({ error: "Invalid User" });
-    return;
+    return res.status(401).json({
+      statusCode: 401,
+      error: "Invalid User",
+    });
   }
 
   const { title, location, price, description, imgList, listType } = req.body;
@@ -112,7 +114,10 @@ const createItem = async (req, res) => {
       data: propertyAddDoc,
     });
   } catch (err) {
-    res.status(500).json({ error: "Internal Server Error" });
+    return res.status(500).json({
+      statusCode: 500,
+      error: "Internal Server Error",
+    });
   }
 };
 
@@ -143,7 +148,10 @@ const getItems = async (req, res) => {
       data: propertyAddListResponse,
     });
   } catch (err) {
-    res.status(500).json({ error: "Internal Server Error" });
+    return res.status(500).json({
+      statusCode: 500,
+      error: "Internal Server Error",
+    });
   }
 };
 
@@ -152,8 +160,10 @@ const getItemDetails = async (req, res) => {
 
   const { itemId } = req.params;
   if (itemId === null || itemId === undefined || itemId.length === 0) {
-    res.status(400).json({ error: "invalid item id" });
-    return;
+    return res.status(400).json({
+      statusCode: 400,
+      error: "Invalid Item Id",
+    });
   }
   try {
     const propertyAdDoc = await PropertyAdd.findById(itemId).populate(
@@ -163,10 +173,14 @@ const getItemDetails = async (req, res) => {
 
     if (token) {
       jwt.verify(
-        token, process.env.JWT_SECRET_KEY, async (err, userInfoDecoded) => {
+        token,
+        process.env.JWT_SECRET_KEY,
+        async (err, userInfoDecoded) => {
           if (err) {
-            res.status(401).json({ error: "Unauthenticated" });
-            return;
+            return res.status(401).json({
+              statusCode: 401,
+              error: "Unauthenticated",
+            });
           }
           userDoc = await UserModel.findById(userInfoDecoded.id);
           res.status(200).json({
@@ -188,8 +202,10 @@ const getItemDetails = async (req, res) => {
       });
     }
   } catch (err) {
-    res.status(400).json({ error: "something went wrong" });
-    return;
+    return res.status(400).json({
+      statusCode: 400,
+      error: "Something went Wrong",
+    });
   }
 };
 
@@ -198,13 +214,17 @@ const postLead = async (req, res) => {
   const { itemId } = req.body;
 
   if (!token) {
-    res.status(401).json({ error: "Invalid User" });
-    return;
+    return res.status(401).json({
+      statusCode: 401,
+      error: "Invalid User",
+    });
   }
 
   if (!itemId) {
-    res.status(401).json({ error: "Invalid ItemId" });
-    return;
+    return res.status(401).json({
+      statusCode: 401,
+      error: "Invalid ItemId",
+    });
   }
 
   try {
@@ -221,8 +241,10 @@ const postLead = async (req, res) => {
     });
 
     if (enquiryMailDoc) {
-      res.status(401).json({ error: "Already Interest has been send to the owner" });
-      return;
+      return res.status(401).json({
+        statusCode: 401,
+        error: "Already Interest has been send to the owner",
+      });
     }
 
     sendEmail(
@@ -245,8 +267,10 @@ const postLead = async (req, res) => {
 
     res.status(201).json({ success: "Interest shared with the owner" });
   } catch (err) {
-    res.status(401).json({ error: "Something went wrong" });
-    return;
+    return res.status(401).json({
+      statusCode: 401,
+      error: "Something went wrong",
+    });
   }
 };
 
@@ -255,8 +279,10 @@ const editItem = async (req, res) => {
   const { itemId } = req.params;
 
   if (!token) {
-    res.status(401).json({ error: "Invalid User" });
-    return;
+    return res.status(401).json({
+      statusCode: 401,
+      error: "Invalid User",
+    });
   }
 
   const { title, location, price, description, imgList, listType } = req.body;
@@ -342,7 +368,10 @@ const editItem = async (req, res) => {
   }
 
   try {
-    jwt.verify(token, process.env.JWT_SECRET_KEY, async (err, userInfoDecoded) => {
+    jwt.verify(
+      token,
+      process.env.JWT_SECRET_KEY,
+      async (err, userInfoDecoded) => {
         if (err) {
           return res.status(401).json({
             statusCode: 401,
@@ -366,17 +395,14 @@ const editItem = async (req, res) => {
             error: "Permission Denied",
           });
         }
-
         propertyAddDoc.title = title;
         propertyAddDoc.location = location;
         propertyAddDoc.price = price;
         propertyAddDoc.description = description;
         propertyAddDoc.imgList = imgList;
         propertyAddDoc.listType = listType;
-
         propertyAddDoc.save();
-        console.log("user", userInfoDecoded);
-        console.log("property", propertyAddDoc);
+
         res.status(200).json({
           success: "Ad Updated",
           data: propertyAddDoc,
