@@ -124,10 +124,11 @@ const createItem = async (req, res) => {
 const getItems = async (req, res) => {
   try {
     const pageNo = req.query.page;
+    const type = req.query.type;
     pageSize = 10;
     const skips = (pageNo - 1) * 10;
 
-    const propertyAddList = await PropertyAdd.find()
+    const propertyAddList = await PropertyAdd.find({listType: type ? type : {$exists: true}})
       .sort({ _id: -1 })
       .skip(skips)
       .limit(pageSize);
